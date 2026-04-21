@@ -1,17 +1,21 @@
 import React from 'react';
 import './App.css';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import Header from './components/Header';
 import HeroSection from './components/HeroSection';
 import ShowcaseCarousel from './components/ShowcaseCarousel';
 import FeaturesSection from './components/FeaturesSection';
 import FooterSection from './components/FooterSection';
 import MatrixRain from './components/MatrixRain';
+import AuthPage from './pages/AuthPage';
+import DashboardPage from './pages/DashboardPage';
+import ChatPage from './pages/ChatPage';
 
 const Home = () => {
   return (
     <div className="relative min-h-screen bg-white overflow-x-hidden">
-      {/* Background gradient overlay - matching Emergent's light blue/cyan/purple gradient */}
+      {/* Background gradient overlay */}
       <div
         className="fixed inset-0 pointer-events-none"
         style={{
@@ -19,11 +23,7 @@ const Home = () => {
           zIndex: 0,
         }}
       />
-      
-      {/* Matrix Rain Background */}
       <MatrixRain />
-
-      {/* Content */}
       <div className="relative" style={{ zIndex: 1 }}>
         <Header />
         <HeroSection />
@@ -35,15 +35,28 @@ const Home = () => {
   );
 };
 
+// Protected route wrapper
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin" /></div>;
+  if (!user) return <Navigate to="/auth" replace />;
+  return children;
+};
+
 function App() {
   return (
     <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="*" element={<Home />} />
-        </Routes>
-      </BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/auth" element={<AuthPage />} />
+            <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+            <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
     </div>
   );
 }

@@ -1,291 +1,562 @@
 #!/usr/bin/env python3
 """
 Backend API Testing for maligeeAi
-Tests all endpoints as specified in the review request
+Tests all new endpoints: auth, builds, chat, pricing
 """
 
 import requests
 import json
-import sys
+import time
+import uuid
 from datetime import datetime
 
-# Backend URL from frontend .env
+# Configuration
 BASE_URL = "https://genesis-clone-1.preview.emergentagent.com/api"
+UNIQUE_EMAIL = f"testuser_{int(time.time())}@test.com"
+TEST_PASSWORD = "test123456"
+TEST_NAME = "Test User"
 
-def test_api_root():
-    """Test GET /api/ - Should return message 'maligeeAi API is running'"""
-    print("🧪 Testing GET /api/")
+# Global variables to store test data
+auth_token = None
+user_data = None
+first_build_id = None
+second_build_id = None
+session_id = None
+
+def log_test(test_name, status, details=""):
+    """Log test results"""
+    status_symbol = "✅" if status == "PASS" else "❌"
+    print(f"{status_symbol} {test_name}: {details}")
+
+def test_auth_signup():
+    """Test POST /api/auth/signup"""
+    global auth_token, user_data
+    
+    print("\n=== Testing Auth Signup ===")
+    
+    payload = {
+        "email": UNIQUE_EMAIL,
+        "password": TEST_PASSWORD,
+        "name": TEST_NAME
+    }
+    
     try:
-        response = requests.get(f"{BASE_URL}/")
-        print(f"   Status: {response.status_code}")
-        print(f"   Response: {response.json()}")
+        response = requests.post(f"{BASE_URL}/auth/signup", json=payload)
         
         if response.status_code == 200:
             data = response.json()
-            if data.get("message") == "maligeeAi API is running":
-                print("   ✅ PASS: Correct message returned")
+            
+            # Validate response structure
+            if "token" in data and "user" in data:
+                auth_token = data["token"]
+                user_data = data["user"]
+                
+                # Validate user data
+                user = data["user"]
+                required_fields = ["id", "email", "name", "created_at", "build_count", "has_free_build"]
+                missing_fields = [field for field in required_fields if field not in user]
+                
+                if missing_fields:
+                    log_test("Auth Signup", "FAIL", f"Missing user fields: {missing_fields}")
+                    return False
+                
+                # Validate specific values
+                if user["email"] != UNIQUE_EMAIL.lower():
+                    log_test("Auth Signup", "FAIL", f"Email mismatch: expected {UNIQUE_EMAIL.lower()}, got {user['email']}")
+                    return False
+                
+                if user["build_count"] != 0:
+                    log_test("Auth Signup", "FAIL", f"Build count should be 0, got {user['build_count']}")
+                    return False
+                
+                if user["has_free_build"] != True:
+                    log_test("Auth Signup", "FAIL", f"has_free_build should be True, got {user['has_free_build']}")
+                    return False
+                
+                log_test("Auth Signup", "PASS", f"User created with ID: {user['id']}")
                 return True
             else:
-                print(f"   ❌ FAIL: Expected message 'maligeeAi API is running', got '{data.get('message')}'")
+                log_test("Auth Signup", "FAIL", f"Missing token or user in response: {data}")
                 return False
         else:
-            print(f"   ❌ FAIL: Expected status 200, got {response.status_code}")
+            log_test("Auth Signup", "FAIL", f"Status {response.status_code}: {response.text}")
             return False
+            
     except Exception as e:
-        print(f"   ❌ ERROR: {str(e)}")
+        log_test("Auth Signup", "FAIL", f"Exception: {str(e)}")
         return False
 
-def test_showcase_endpoint():
-    """Test GET /api/showcase - Should return list of showcase items"""
-    print("\n🧪 Testing GET /api/showcase")
+def test_auth_login():
+    """Test POST /api/auth/login"""
+    global auth_token, user_data
+    
+    print("\n=== Testing Auth Login ===")
+    
+    payload = {
+        "email": UNIQUE_EMAIL,
+        "password": TEST_PASSWORD
+    }
+    
     try:
-        response = requests.get(f"{BASE_URL}/showcase")
-        print(f"   Status: {response.status_code}")
+        response = requests.post(f"{BASE_URL}/auth/login", json=payload)
         
         if response.status_code == 200:
             data = response.json()
-            print(f"   Response: Found {len(data)} showcase items")
             
-            if isinstance(data, list) and len(data) > 0:
-                # Check structure of first item
-                first_item = data[0]
-                required_fields = ['id', 'mobile_image', 'laptop_image', 'order']
-                missing_fields = [field for field in required_fields if field not in first_item]
+            if "token" in data and "user" in data:
+                auth_token = data["token"]  # Update token
+                user_data = data["user"]
                 
-                if not missing_fields:
-                    print("   ✅ PASS: Showcase items have correct structure")
-                    print(f"   Sample item: {json.dumps(first_item, indent=2)}")
-                    return True
-                else:
-                    print(f"   ❌ FAIL: Missing fields in showcase item: {missing_fields}")
-                    return False
-            else:
-                print("   ❌ FAIL: Expected non-empty list of showcase items")
-                return False
-        else:
-            print(f"   ❌ FAIL: Expected status 200, got {response.status_code}")
-            return False
-    except Exception as e:
-        print(f"   ❌ ERROR: {str(e)}")
-        return False
-
-def test_features_endpoint():
-    """Test GET /api/features - Should return list of features"""
-    print("\n🧪 Testing GET /api/features")
-    try:
-        response = requests.get(f"{BASE_URL}/features")
-        print(f"   Status: {response.status_code}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"   Response: Found {len(data)} features")
-            
-            if isinstance(data, list) and len(data) > 0:
-                # Check structure of first item
-                first_item = data[0]
-                required_fields = ['id', 'icon', 'title', 'description', 'mockup_type', 'order']
-                missing_fields = [field for field in required_fields if field not in first_item]
-                
-                if not missing_fields:
-                    print("   ✅ PASS: Features have correct structure")
-                    print(f"   Sample feature: {json.dumps(first_item, indent=2)}")
-                    return True
-                else:
-                    print(f"   ❌ FAIL: Missing fields in feature item: {missing_fields}")
-                    return False
-            else:
-                print("   ❌ FAIL: Expected non-empty list of features")
-                return False
-        else:
-            print(f"   ❌ FAIL: Expected status 200, got {response.status_code}")
-            return False
-    except Exception as e:
-        print(f"   ❌ ERROR: {str(e)}")
-        return False
-
-def test_stats_endpoint():
-    """Test GET /api/stats - Should return stats object"""
-    print("\n🧪 Testing GET /api/stats")
-    try:
-        response = requests.get(f"{BASE_URL}/stats")
-        print(f"   Status: {response.status_code}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"   Response: {json.dumps(data, indent=2)}")
-            
-            required_fields = ['users_count', 'description']
-            missing_fields = [field for field in required_fields if field not in data]
-            
-            if not missing_fields:
-                print("   ✅ PASS: Stats have correct structure")
+                log_test("Auth Login", "PASS", f"Login successful for {data['user']['email']}")
                 return True
             else:
-                print(f"   ❌ FAIL: Missing fields in stats: {missing_fields}")
+                log_test("Auth Login", "FAIL", f"Missing token or user in response: {data}")
                 return False
         else:
-            print(f"   ❌ FAIL: Expected status 200, got {response.status_code}")
+            log_test("Auth Login", "FAIL", f"Status {response.status_code}: {response.text}")
             return False
+            
     except Exception as e:
-        print(f"   ❌ ERROR: {str(e)}")
+        log_test("Auth Login", "FAIL", f"Exception: {str(e)}")
         return False
 
-def test_waitlist_creation():
-    """Test POST /api/waitlist - Should create waitlist entry"""
-    print("\n🧪 Testing POST /api/waitlist")
+def test_auth_me():
+    """Test GET /api/auth/me"""
+    print("\n=== Testing Auth Me ===")
+    
+    if not auth_token:
+        log_test("Auth Me", "FAIL", "No auth token available")
+        return False
+    
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    
     try:
-        test_data = {
-            "email": "john.doe@example.com",
-            "name": "John Doe"
-        }
-        
-        response = requests.post(f"{BASE_URL}/waitlist", json=test_data)
-        print(f"   Status: {response.status_code}")
+        response = requests.get(f"{BASE_URL}/auth/me", headers=headers)
         
         if response.status_code == 200:
             data = response.json()
-            print(f"   Response: {json.dumps(data, indent=2)}")
             
-            required_fields = ['id', 'email', 'name', 'created_at']
+            required_fields = ["id", "email", "name", "created_at", "build_count", "has_free_build"]
             missing_fields = [field for field in required_fields if field not in data]
             
-            if not missing_fields and data['email'] == test_data['email']:
-                print("   ✅ PASS: Waitlist entry created successfully")
-                return True, data
-            else:
-                print(f"   ❌ FAIL: Missing fields or incorrect data: {missing_fields}")
-                return False, None
-        else:
-            print(f"   ❌ FAIL: Expected status 200, got {response.status_code}")
-            print(f"   Response: {response.text}")
-            return False, None
-    except Exception as e:
-        print(f"   ❌ ERROR: {str(e)}")
-        return False, None
-
-def test_waitlist_duplicate():
-    """Test POST /api/waitlist with duplicate email - Should return 409"""
-    print("\n🧪 Testing POST /api/waitlist (duplicate email)")
-    try:
-        test_data = {
-            "email": "john.doe@example.com",  # Same email as previous test
-            "name": "Jane Doe"
-        }
-        
-        response = requests.post(f"{BASE_URL}/waitlist", json=test_data)
-        print(f"   Status: {response.status_code}")
-        
-        if response.status_code == 409:
-            print("   ✅ PASS: Duplicate email correctly rejected with 409 status")
+            if missing_fields:
+                log_test("Auth Me", "FAIL", f"Missing fields: {missing_fields}")
+                return False
+            
+            log_test("Auth Me", "PASS", f"Profile retrieved for {data['email']}")
             return True
         else:
-            print(f"   ❌ FAIL: Expected status 409 for duplicate email, got {response.status_code}")
-            print(f"   Response: {response.text}")
+            log_test("Auth Me", "FAIL", f"Status {response.status_code}: {response.text}")
             return False
+            
     except Exception as e:
-        print(f"   ❌ ERROR: {str(e)}")
+        log_test("Auth Me", "FAIL", f"Exception: {str(e)}")
         return False
 
-def test_waitlist_count():
-    """Test GET /api/waitlist/count - Should return count of waitlist entries"""
-    print("\n🧪 Testing GET /api/waitlist/count")
+def test_create_first_build():
+    """Test POST /api/builds - first build should be FREE"""
+    global first_build_id
+    
+    print("\n=== Testing Create First Build (FREE) ===")
+    
+    if not auth_token:
+        log_test("Create First Build", "FAIL", "No auth token available")
+        return False
+    
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    payload = {
+        "name": "My First App",
+        "description": "Testing first free build"
+    }
+    
     try:
-        response = requests.get(f"{BASE_URL}/waitlist/count")
-        print(f"   Status: {response.status_code}")
+        response = requests.post(f"{BASE_URL}/builds", json=payload, headers=headers)
         
         if response.status_code == 200:
             data = response.json()
-            print(f"   Response: {json.dumps(data, indent=2)}")
+            first_build_id = data.get("id")
             
-            if 'count' in data and isinstance(data['count'], int):
-                print(f"   ✅ PASS: Waitlist count returned: {data['count']}")
-                return True
-            else:
-                print("   ❌ FAIL: Expected 'count' field with integer value")
+            # Validate first build is free
+            if data.get("is_free") != True:
+                log_test("Create First Build", "FAIL", f"First build should be free, got is_free={data.get('is_free')}")
                 return False
+            
+            if data.get("payment_status") != "free":
+                log_test("Create First Build", "FAIL", f"First build payment_status should be 'free', got '{data.get('payment_status')}'")
+                return False
+            
+            log_test("Create First Build", "PASS", f"Free build created with ID: {first_build_id}")
+            return True
         else:
-            print(f"   ❌ FAIL: Expected status 200, got {response.status_code}")
+            log_test("Create First Build", "FAIL", f"Status {response.status_code}: {response.text}")
             return False
+            
     except Exception as e:
-        print(f"   ❌ ERROR: {str(e)}")
+        log_test("Create First Build", "FAIL", f"Exception: {str(e)}")
         return False
 
-def test_seed_endpoint():
-    """Test POST /api/seed - Should seed/populate the database"""
-    print("\n🧪 Testing POST /api/seed")
+def test_create_second_build():
+    """Test POST /api/builds - second build should cost $10"""
+    global second_build_id
+    
+    print("\n=== Testing Create Second Build ($10) ===")
+    
+    if not auth_token:
+        log_test("Create Second Build", "FAIL", "No auth token available")
+        return False
+    
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    payload = {
+        "name": "Second App",
+        "description": "Testing paid build"
+    }
+    
     try:
-        response = requests.post(f"{BASE_URL}/seed")
-        print(f"   Status: {response.status_code}")
+        response = requests.post(f"{BASE_URL}/builds", json=payload, headers=headers)
         
         if response.status_code == 200:
             data = response.json()
-            print(f"   Response: {json.dumps(data, indent=2)}")
+            second_build_id = data.get("id")
             
-            if 'message' in data:
-                print("   ✅ PASS: Seed endpoint executed successfully")
-                return True
-            else:
-                print("   ❌ FAIL: Expected 'message' field in response")
+            # Validate second build requires payment
+            if data.get("is_free") != False:
+                log_test("Create Second Build", "FAIL", f"Second build should not be free, got is_free={data.get('is_free')}")
                 return False
+            
+            if data.get("payment_status") != "pending":
+                log_test("Create Second Build", "FAIL", f"Second build payment_status should be 'pending', got '{data.get('payment_status')}'")
+                return False
+            
+            log_test("Create Second Build", "PASS", f"Paid build created with ID: {second_build_id}")
+            return True
         else:
-            print(f"   ❌ FAIL: Expected status 200, got {response.status_code}")
-            print(f"   Response: {response.text}")
+            log_test("Create Second Build", "FAIL", f"Status {response.status_code}: {response.text}")
             return False
+            
     except Exception as e:
-        print(f"   ❌ ERROR: {str(e)}")
+        log_test("Create Second Build", "FAIL", f"Exception: {str(e)}")
         return False
 
-def main():
-    """Run all backend API tests in the specified order"""
-    print("🚀 Starting maligeeAi Backend API Tests")
-    print(f"🔗 Testing against: {BASE_URL}")
-    print("=" * 60)
+def test_get_builds():
+    """Test GET /api/builds"""
+    print("\n=== Testing Get Builds ===")
     
-    test_results = []
+    if not auth_token:
+        log_test("Get Builds", "FAIL", "No auth token available")
+        return False
     
-    # Test in the order specified in the review request
-    test_results.append(("GET /api/", test_api_root()))
-    test_results.append(("GET /api/showcase", test_showcase_endpoint()))
-    test_results.append(("GET /api/features", test_features_endpoint()))
-    test_results.append(("GET /api/stats", test_stats_endpoint()))
+    headers = {"Authorization": f"Bearer {auth_token}"}
     
-    # Test waitlist creation first, then duplicate
-    waitlist_success, waitlist_data = test_waitlist_creation()
-    test_results.append(("POST /api/waitlist", waitlist_success))
+    try:
+        response = requests.get(f"{BASE_URL}/builds", headers=headers)
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            if not isinstance(data, list):
+                log_test("Get Builds", "FAIL", f"Expected list, got {type(data)}")
+                return False
+            
+            if len(data) != 2:
+                log_test("Get Builds", "FAIL", f"Expected 2 builds, got {len(data)}")
+                return False
+            
+            log_test("Get Builds", "PASS", f"Retrieved {len(data)} builds")
+            return True
+        else:
+            log_test("Get Builds", "FAIL", f"Status {response.status_code}: {response.text}")
+            return False
+            
+    except Exception as e:
+        log_test("Get Builds", "FAIL", f"Exception: {str(e)}")
+        return False
+
+def test_deploy_unpaid_build():
+    """Test POST /api/builds/{second_build_id}/deploy - should FAIL with 402"""
+    print("\n=== Testing Deploy Unpaid Build (Should Fail) ===")
     
-    if waitlist_success:
-        test_results.append(("POST /api/waitlist (duplicate)", test_waitlist_duplicate()))
-    else:
-        print("\n⚠️  Skipping duplicate test due to waitlist creation failure")
-        test_results.append(("POST /api/waitlist (duplicate)", False))
+    if not auth_token or not second_build_id:
+        log_test("Deploy Unpaid Build", "FAIL", "No auth token or second build ID available")
+        return False
     
-    test_results.append(("GET /api/waitlist/count", test_waitlist_count()))
-    test_results.append(("POST /api/seed", test_seed_endpoint()))
+    headers = {"Authorization": f"Bearer {auth_token}"}
     
-    # Summary
-    print("\n" + "=" * 60)
-    print("📊 TEST SUMMARY")
-    print("=" * 60)
+    try:
+        response = requests.post(f"{BASE_URL}/builds/{second_build_id}/deploy", headers=headers)
+        
+        if response.status_code == 402:
+            log_test("Deploy Unpaid Build", "PASS", "Correctly rejected unpaid build deployment with 402")
+            return True
+        else:
+            log_test("Deploy Unpaid Build", "FAIL", f"Expected 402, got {response.status_code}: {response.text}")
+            return False
+            
+    except Exception as e:
+        log_test("Deploy Unpaid Build", "FAIL", f"Exception: {str(e)}")
+        return False
+
+def test_pay_for_build():
+    """Test POST /api/builds/{second_build_id}/pay - mock payment"""
+    print("\n=== Testing Pay for Build ===")
+    
+    if not auth_token or not second_build_id:
+        log_test("Pay for Build", "FAIL", "No auth token or second build ID available")
+        return False
+    
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    
+    try:
+        response = requests.post(f"{BASE_URL}/builds/{second_build_id}/pay", headers=headers)
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            if "payment_status" in data and data["payment_status"] == "mock_paid":
+                log_test("Pay for Build", "PASS", "Mock payment successful")
+                return True
+            else:
+                log_test("Pay for Build", "FAIL", f"Unexpected payment response: {data}")
+                return False
+        else:
+            log_test("Pay for Build", "FAIL", f"Status {response.status_code}: {response.text}")
+            return False
+            
+    except Exception as e:
+        log_test("Pay for Build", "FAIL", f"Exception: {str(e)}")
+        return False
+
+def test_deploy_paid_build():
+    """Test POST /api/builds/{second_build_id}/deploy - should succeed after payment"""
+    print("\n=== Testing Deploy Paid Build ===")
+    
+    if not auth_token or not second_build_id:
+        log_test("Deploy Paid Build", "FAIL", "No auth token or second build ID available")
+        return False
+    
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    
+    try:
+        response = requests.post(f"{BASE_URL}/builds/{second_build_id}/deploy", headers=headers)
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            if data.get("status") == "deployed":
+                log_test("Deploy Paid Build", "PASS", "Paid build deployed successfully")
+                return True
+            else:
+                log_test("Deploy Paid Build", "FAIL", f"Unexpected deploy response: {data}")
+                return False
+        else:
+            log_test("Deploy Paid Build", "FAIL", f"Status {response.status_code}: {response.text}")
+            return False
+            
+    except Exception as e:
+        log_test("Deploy Paid Build", "FAIL", f"Exception: {str(e)}")
+        return False
+
+def test_deploy_free_build():
+    """Test POST /api/builds/{first_build_id}/deploy - free build should deploy without payment"""
+    print("\n=== Testing Deploy Free Build ===")
+    
+    if not auth_token or not first_build_id:
+        log_test("Deploy Free Build", "FAIL", "No auth token or first build ID available")
+        return False
+    
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    
+    try:
+        response = requests.post(f"{BASE_URL}/builds/{first_build_id}/deploy", headers=headers)
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            if data.get("status") == "deployed":
+                log_test("Deploy Free Build", "PASS", "Free build deployed successfully")
+                return True
+            else:
+                log_test("Deploy Free Build", "FAIL", f"Unexpected deploy response: {data}")
+                return False
+        else:
+            log_test("Deploy Free Build", "FAIL", f"Status {response.status_code}: {response.text}")
+            return False
+            
+    except Exception as e:
+        log_test("Deploy Free Build", "FAIL", f"Exception: {str(e)}")
+        return False
+
+def test_get_pricing():
+    """Test GET /api/pricing"""
+    print("\n=== Testing Get Pricing ===")
+    
+    try:
+        response = requests.get(f"{BASE_URL}/pricing")
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            if "plans" not in data:
+                log_test("Get Pricing", "FAIL", "Missing 'plans' in response")
+                return False
+            
+            plans = data["plans"]
+            if not isinstance(plans, list) or len(plans) < 2:
+                log_test("Get Pricing", "FAIL", f"Expected at least 2 pricing plans, got {len(plans) if isinstance(plans, list) else 'not a list'}")
+                return False
+            
+            # Check for free plan
+            free_plan = next((p for p in plans if p.get("price") == 0), None)
+            if not free_plan:
+                log_test("Get Pricing", "FAIL", "No free plan found")
+                return False
+            
+            # Check for paid plan
+            paid_plan = next((p for p in plans if p.get("price") == 10.0), None)
+            if not paid_plan:
+                log_test("Get Pricing", "FAIL", "No $10 plan found")
+                return False
+            
+            log_test("Get Pricing", "PASS", f"Retrieved {len(plans)} pricing plans")
+            return True
+        else:
+            log_test("Get Pricing", "FAIL", f"Status {response.status_code}: {response.text}")
+            return False
+            
+    except Exception as e:
+        log_test("Get Pricing", "FAIL", f"Exception: {str(e)}")
+        return False
+
+def test_chat():
+    """Test POST /api/chat"""
+    global session_id
+    
+    print("\n=== Testing Chat ===")
+    
+    if not auth_token:
+        log_test("Chat", "FAIL", "No auth token available")
+        return False
+    
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    payload = {
+        "message": "Hello, who are you?"
+    }
+    
+    try:
+        response = requests.post(f"{BASE_URL}/chat", json=payload, headers=headers)
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            if "response" not in data or "session_id" not in data:
+                log_test("Chat", "FAIL", f"Missing response or session_id: {data}")
+                return False
+            
+            session_id = data["session_id"]
+            ai_response = data["response"]
+            
+            if not ai_response or len(ai_response.strip()) == 0:
+                log_test("Chat", "FAIL", "Empty AI response")
+                return False
+            
+            log_test("Chat", "PASS", f"AI responded with session_id: {session_id}")
+            return True
+        else:
+            log_test("Chat", "FAIL", f"Status {response.status_code}: {response.text}")
+            return False
+            
+    except Exception as e:
+        log_test("Chat", "FAIL", f"Exception: {str(e)}")
+        return False
+
+def test_duplicate_signup():
+    """Test POST /api/auth/signup with duplicate email - should return 409"""
+    print("\n=== Testing Duplicate Signup ===")
+    
+    payload = {
+        "email": UNIQUE_EMAIL,  # Same email as before
+        "password": TEST_PASSWORD,
+        "name": "Duplicate User"
+    }
+    
+    try:
+        response = requests.post(f"{BASE_URL}/auth/signup", json=payload)
+        
+        if response.status_code == 409:
+            log_test("Duplicate Signup", "PASS", "Correctly rejected duplicate email with 409")
+            return True
+        else:
+            log_test("Duplicate Signup", "FAIL", f"Expected 409, got {response.status_code}: {response.text}")
+            return False
+            
+    except Exception as e:
+        log_test("Duplicate Signup", "FAIL", f"Exception: {str(e)}")
+        return False
+
+def test_wrong_password():
+    """Test POST /api/auth/login with wrong password - should return 401"""
+    print("\n=== Testing Wrong Password ===")
+    
+    payload = {
+        "email": UNIQUE_EMAIL,
+        "password": "wrongpassword123"
+    }
+    
+    try:
+        response = requests.post(f"{BASE_URL}/auth/login", json=payload)
+        
+        if response.status_code == 401:
+            log_test("Wrong Password", "PASS", "Correctly rejected wrong password with 401")
+            return True
+        else:
+            log_test("Wrong Password", "FAIL", f"Expected 401, got {response.status_code}: {response.text}")
+            return False
+            
+    except Exception as e:
+        log_test("Wrong Password", "FAIL", f"Exception: {str(e)}")
+        return False
+
+def run_all_tests():
+    """Run all tests in the specified order"""
+    print(f"🚀 Starting maligeeAi Backend API Tests")
+    print(f"📧 Using test email: {UNIQUE_EMAIL}")
+    print(f"🌐 Testing against: {BASE_URL}")
+    
+    tests = [
+        test_auth_signup,
+        test_auth_login,
+        test_auth_me,
+        test_create_first_build,
+        test_create_second_build,
+        test_get_builds,
+        test_deploy_unpaid_build,
+        test_pay_for_build,
+        test_deploy_paid_build,
+        test_deploy_free_build,
+        test_get_pricing,
+        test_chat,
+        test_duplicate_signup,
+        test_wrong_password
+    ]
     
     passed = 0
     failed = 0
     
-    for test_name, result in test_results:
-        status = "✅ PASS" if result else "❌ FAIL"
-        print(f"{status} {test_name}")
-        if result:
-            passed += 1
-        else:
+    for test_func in tests:
+        try:
+            if test_func():
+                passed += 1
+            else:
+                failed += 1
+        except Exception as e:
+            print(f"❌ {test_func.__name__}: EXCEPTION - {str(e)}")
             failed += 1
     
-    print(f"\n📈 Results: {passed} passed, {failed} failed out of {len(test_results)} tests")
+    print(f"\n📊 Test Results:")
+    print(f"✅ Passed: {passed}")
+    print(f"❌ Failed: {failed}")
+    print(f"📈 Success Rate: {(passed/(passed+failed)*100):.1f}%")
     
-    if failed == 0:
-        print("🎉 All tests passed!")
-        return 0
-    else:
-        print("⚠️  Some tests failed. Check the details above.")
-        return 1
+    return passed, failed
 
 if __name__ == "__main__":
-    sys.exit(main())
+    run_all_tests()

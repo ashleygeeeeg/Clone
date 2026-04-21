@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Github, Apple, Facebook, Mail } from 'lucide-react';
 import { showcaseItems as mockShowcase } from '../data/mockData';
 import { fetchShowcase } from '../services/api';
 
 const HeroSection = () => {
+  const navigate = useNavigate();
   const [items, setItems] = useState(mockShowcase);
   const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -53,7 +55,7 @@ const HeroSection = () => {
           </h2>
 
           {/* Google Button */}
-          <button className="w-full max-w-sm flex items-center justify-center gap-3 px-6 py-3.5 bg-gray-800 hover:bg-gray-700 text-white rounded-full font-medium transition-colors duration-200 mb-4">
+          <button onClick={() => navigate('/auth')} className="w-full max-w-sm flex items-center justify-center gap-3 px-6 py-3.5 bg-gray-800 hover:bg-gray-700 text-white rounded-full font-medium transition-colors duration-200 mb-4">
             <img
               src="https://assets.emergent.sh/assets/Google.svg"
               alt="Google"
@@ -64,19 +66,19 @@ const HeroSection = () => {
 
           {/* Social buttons row */}
           <div className="flex items-center gap-3 mb-4 w-full max-w-sm justify-center">
-            <button className="flex-1 flex items-center justify-center py-3 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors duration-200">
+            <button onClick={() => navigate('/auth')} className="flex-1 flex items-center justify-center py-3 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors duration-200">
               <Github className="w-5 h-5 text-gray-700" />
             </button>
-            <button className="flex-1 flex items-center justify-center py-3 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors duration-200">
+            <button onClick={() => navigate('/auth')} className="flex-1 flex items-center justify-center py-3 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors duration-200">
               <Apple className="w-5 h-5 text-gray-700" />
             </button>
-            <button className="flex-1 flex items-center justify-center py-3 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors duration-200">
+            <button onClick={() => navigate('/auth')} className="flex-1 flex items-center justify-center py-3 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors duration-200">
               <Facebook className="w-5 h-5 text-gray-700" />
             </button>
           </div>
 
           {/* Email Button */}
-          <button className="w-full max-w-sm flex items-center justify-center gap-3 px-6 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full font-medium transition-colors duration-200 mb-4">
+          <button onClick={() => navigate('/auth')} className="w-full max-w-sm flex items-center justify-center gap-3 px-6 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full font-medium transition-colors duration-200 mb-4">
             <Mail className="w-5 h-5" />
             Continue with Email
           </button>

@@ -195,10 +195,145 @@ backend:
           agent: "testing"
           comment: "✅ TESTED: API successfully seeds database and returns success message. All collections populated correctly."
 
+  - task: "POST /api/auth/signup"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "JWT auth signup with bcrypt password hashing, email validation, and user creation."
+        - working: true
+          agent: "testing"
+          comment: "✅ TESTED: Signup creates user with correct structure (id, email, name, build_count=0, has_free_build=true). Returns JWT token. Duplicate email properly rejected with 409."
+
+  - task: "POST /api/auth/login"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "JWT auth login with password verification and token generation."
+        - working: true
+          agent: "testing"
+          comment: "✅ TESTED: Login validates credentials and returns JWT token with user data. Wrong password properly rejected with 401."
+
+  - task: "GET /api/auth/me"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Protected endpoint returning current user profile with build count."
+        - working: true
+          agent: "testing"
+          comment: "✅ TESTED: Returns user profile with all required fields (id, email, name, created_at, build_count, has_free_build). Bearer token authentication working."
+
+  - task: "POST /api/builds"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Build creation with pricing logic - first build free, subsequent builds $10."
+        - working: true
+          agent: "testing"
+          comment: "✅ TESTED: First build correctly marked as free (is_free=true, payment_status='free'). Second build requires payment (is_free=false, payment_status='pending')."
+
+  - task: "GET /api/builds"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Returns user's builds sorted by creation date."
+        - working: true
+          agent: "testing"
+          comment: "✅ TESTED: Returns list of user builds with correct structure. Properly filtered by user_id."
+
+  - task: "POST /api/builds/{id}/pay"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Mock payment endpoint updating build payment_status to 'mock_paid'."
+        - working: true
+          agent: "testing"
+          comment: "✅ TESTED: Mock payment successfully updates payment_status to 'mock_paid'. Creates payment record in database."
+
+  - task: "POST /api/builds/{id}/deploy"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Deploy endpoint with payment validation - requires payment for non-free builds."
+        - working: true
+          agent: "testing"
+          comment: "✅ TESTED: Correctly rejects unpaid builds with 402 Payment Required. Allows deployment after payment. Free builds deploy without payment."
+
+  - task: "POST /api/chat"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "AI Partner in Crime chat using GPT-4o with session management and payment-based restrictions."
+        - working: true
+          agent: "testing"
+          comment: "✅ TESTED: AI chat responds correctly with session_id. Uses GPT-4o via Emergent LLM integration. Chat history saved to database."
+
+  - task: "GET /api/pricing"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Returns pricing plans - first build free, subsequent builds $10."
+        - working: true
+          agent: "testing"
+          comment: "✅ TESTED: Returns 2 pricing plans with correct structure. Free plan (price=0) and paid plan (price=10.0) both present."
+
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 2
+  test_sequence: 3
   run_ui: false
 
 test_plan:
@@ -209,6 +344,6 @@ test_plan:
 
 agent_communication:
     - agent: "main"
-      message: "Backend implemented with all endpoints. Auto-seeding on first request. Test all API endpoints including showcase, features, stats, waitlist (create + count + duplicate check), and seed."
+      message: "Major update: Added JWT auth (signup/login/me), build system with pricing (1st free, $10 after), mock payment, deploy, AI Partner in Crime chat via GPT-4o. Test auth flow first, then builds, then chat."
     - agent: "testing"
-      message: "✅ BACKEND TESTING COMPLETE: All 8 API endpoints tested successfully. GET /api/ returns correct message, showcase/features/stats auto-seed properly, waitlist creation/duplicate detection/count working, seed endpoint functional. All tests passed with 100% success rate. Backend is fully operational."
+      message: "✅ COMPREHENSIVE TESTING COMPLETE: All 14 test cases passed (100% success rate). Tested full auth flow, build creation/payment/deployment, AI chat, pricing, and error handling. All new endpoints working perfectly according to specifications."
