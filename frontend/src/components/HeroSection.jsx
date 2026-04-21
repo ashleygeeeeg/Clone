@@ -35,11 +35,19 @@ const HeroSection = () => {
       <div className="max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
         {/* Left - Auth Form */}
         <div className="flex flex-col items-center text-center relative z-10">
-          <img
-            src="https://assets.emergent.sh/assets/Landing-Hero-E.gif"
-            alt="maligeeAi Logo"
-            className="w-20 h-20 mb-6"
-          />
+          <div className="mb-6 spinning-logo">
+            <span
+              className="text-4xl font-black tracking-tight bg-gradient-to-br from-gray-900 via-gray-700 to-gray-500 bg-clip-text"
+              style={{
+                fontFamily: "'Space Grotesk', sans-serif",
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                display: 'inline-block',
+              }}
+            >
+              MG.AI
+            </span>
+          </div>
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-2 leading-tight">
             Build Full-Stack
           </h1>
