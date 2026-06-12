@@ -1,0 +1,16 @@
+services:
+  api:
+    build: ./backend
+    ports:
+      - '8000:8000'
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - DB_NAME=clone
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
