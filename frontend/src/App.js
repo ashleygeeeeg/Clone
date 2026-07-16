@@ -1,6 +1,6 @@
 import React from 'react';
 import './App.css';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Header from './components/Header';
 import HeroSection from './components/HeroSection';
@@ -12,6 +12,7 @@ import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 import ChatPage from './pages/ChatPage';
 import SharePage from './pages/SharePage';
+import AuthCallback from './pages/AuthCallback';
 
 const Home = () => {
   return (
@@ -44,19 +45,28 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+function AppRouter() {
+  const location = useLocation();
+  // Handle OAuth callback synchronously during render (before ProtectedRoute runs)
+  if (location.hash?.includes('session_id=')) { return <AuthCallback />; }
+  return (
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/auth" element={<AuthPage />} />
+      <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+      <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+      <Route path="/share/:slug" element={<SharePage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
 function App() {
   return (
     <div className="App">
       <AuthProvider>
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-            <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
-            <Route path="/share/:slug" element={<SharePage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          <AppRouter />
         </BrowserRouter>
       </AuthProvider>
     </div>
