@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Send, ArrowLeft, Loader2, Plus, MessageCircle, Sparkles } from 'lucide-react';
@@ -18,22 +18,23 @@ const ChatPage = () => {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  useEffect(() => {
-    if (token) fetchSessions();
-  }, [token]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const fetchSessions = async () => {
+  // Wrap fetchSessions with useCallback so it can be safely added to useEffect deps
+  const fetchSessions = useCallback(async () => {
     try {
       const res = await axios.get(`${API}/chat/sessions`, { headers: getAuthHeaders() });
       setSessions(res.data);
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [getAuthHeaders]);
+
+  useEffect(() => {
+    if (token) fetchSessions();
+  }, [token, fetchSessions]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const loadSession = async (sid) => {
     setSessionId(sid);
@@ -138,7 +139,7 @@ const ChatPage = () => {
                 <Sparkles className="w-10 h-10 text-violet-500" />
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-2">Hey, I'm Partner in Crime</h3>
-              <p className="text-gray-500 max-w-md mb-6">Your unfiltered AI sidekick. Ask me anything — I can browse the web, brainstorm ideas, explain concepts, and more. Just can't help you build until you've got a paid build.</p>
+              <p className="text-gray-500 max-w-md mb-6">Your unfiltered AI sidekick. Ask me anything — I can browse the web, brainstorm ideas, explain concepts, and more. Just can't help you b[...]
               <div className="flex flex-wrap gap-2 justify-center">
                 {['What can you do?', 'Explain quantum computing', 'Help me brainstorm an app idea', 'What\'s trending in AI?'].map(q => (
                   <button key={q} onClick={() => { setInput(q); }} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm text-gray-700 transition-colors">
