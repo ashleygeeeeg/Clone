@@ -99,8 +99,8 @@ const DashboardPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50" data-testid="patient-dashboard">
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+      <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
+        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-6">
             <h1 className="text-xl font-medium cursor-pointer" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }} onClick={() => navigate('/')}>maligeeAi</h1>
             <nav className="flex items-center gap-4">
@@ -110,8 +110,8 @@ const DashboardPage = () => {
               </button>
             </nav>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-500" data-testid="user-email-display">{user?.email}</span>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <span className="hidden sm:inline text-sm text-gray-500 truncate max-w-[200px]" data-testid="user-email-display">{user?.email}</span>
             <button onClick={handleLogout} data-testid="logout-btn" className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
               <LogOut className="w-4 h-4" /> Logout
             </button>
@@ -119,19 +119,19 @@ const DashboardPage = () => {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900">Welcome, {user?.name || 'there'}!</h2>
           <p className="text-gray-500 mt-1">Manage your builds and deployments</p>
         </div>
 
         <div className="bg-gradient-to-r from-gray-900 to-gray-700 rounded-2xl p-6 mb-8 text-white">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-lg font-semibold">Pricing: First build FREE, then $10/build</h3>
               <p className="text-gray-300 text-sm mt-1">All edits are free. AI Partner in Crime is always free.</p>
             </div>
-            <button onClick={() => setShowNewBuild(true)} data-testid="new-build-btn" className="flex items-center gap-2 px-5 py-2.5 bg-white text-gray-900 rounded-full font-medium hover:bg-gray-100 transition-colors">
+            <button onClick={() => setShowNewBuild(true)} data-testid="new-build-btn" className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white text-gray-900 rounded-full font-medium hover:bg-gray-100 transition-colors self-start sm:self-auto flex-shrink-0">
               <Plus className="w-4 h-4" /> New Build
             </button>
           </div>

@@ -8,8 +8,8 @@ const EmptyState = ({ onSuggestion }) => (
     <div className="w-20 h-20 rounded-full bg-violet-100 flex items-center justify-center mb-6">
       <Sparkles className="w-10 h-10 text-violet-500" />
     </div>
-    <h3 className="text-2xl font-bold text-gray-900 mb-2">Hey, I'm Partner in Crime</h3>
-    <p className="text-gray-500 max-w-md mb-6">Your unfiltered AI sidekick. Ask me anything — I can browse the web, brainstorm ideas, explain concepts, and more. Just can't help you build until you've got a paid build.</p>
+    <h3 className="text-2xl font-bold text-gray-900 mb-2">Hey, I&apos;m Partner in Crime</h3>
+    <p className="text-gray-500 max-w-md mb-6">Your unfiltered AI sidekick. Ask me anything — I can browse the web, brainstorm ideas, explain concepts, and more. Just can&apos;t help you build until you&apos;ve got a paid build.</p>
     <div className="flex flex-wrap gap-2 justify-center">
       {SUGGESTIONS.map(q => (
         <button key={q} onClick={() => onSuggestion(q)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm text-gray-700 transition-colors">

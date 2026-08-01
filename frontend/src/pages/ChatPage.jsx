@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Send, Sparkles } from 'lucide-react';
+import { Send, Sparkles, Menu } from 'lucide-react';
 import { ChatSidebar } from '../components/chat/ChatSidebar';
 import { MessageList } from '../components/chat/MessageList';
 import axios from 'axios';
@@ -20,6 +20,7 @@ const ChatPage = () => {
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState(null);
   const [sessions, setSessions] = useState([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const inputRef = useRef(null);
 
   const fetchSessions = useCallback(async () => {
@@ -80,32 +81,40 @@ const ChatPage = () => {
   };
 
   return (
-    <div className="h-screen flex bg-white">
-      <ChatSidebar
-        sessions={sessions}
-        activeSessionId={sessionId}
-        onSelect={loadSession}
-        onNew={newChat}
-        onBack={() => navigate('/dashboard')}
-      />
+    <div className="h-screen flex bg-white overflow-hidden">
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/30 z-30 md:hidden" data-testid="chat-sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
+      <div className={`${sidebarOpen ? 'fixed inset-y-0 left-0 z-40 flex' : 'hidden'} md:static md:flex md:z-auto h-full`}>
+        <ChatSidebar
+          sessions={sessions}
+          activeSessionId={sessionId}
+          onSelect={(sid) => { loadSession(sid); setSidebarOpen(false); }}
+          onNew={() => { newChat(); setSidebarOpen(false); }}
+          onBack={() => navigate('/dashboard')}
+        />
+      </div>
 
-      <div className="flex-1 flex flex-col">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-violet-100 flex items-center justify-center">
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            <button onClick={() => setSidebarOpen(true)} data-testid="chat-sidebar-toggle" className="md:hidden text-gray-500 hover:text-gray-700 flex-shrink-0">
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="w-9 h-9 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0">
               <Sparkles className="w-5 h-5 text-violet-600" />
             </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">Partner in Crime</h3>
-              <p className="text-xs text-gray-500">Your unfiltered AI sidekick • Always free</p>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-gray-900 truncate">Partner in Crime</h3>
+              <p className="text-xs text-gray-500 truncate">Your unfiltered AI sidekick • Always free</p>
             </div>
           </div>
-          {user && <span className="text-sm text-gray-400" data-testid="chat-user-email">{user.email}</span>}
+          {user && <span className="hidden sm:inline text-sm text-gray-400 truncate max-w-[200px]" data-testid="chat-user-email">{user.email}</span>}
         </div>
 
         <MessageList messages={messages} loading={loading} onSuggestion={setInput} />
 
-        <div className="px-6 py-4 border-t border-gray-200">
+        <div className="px-4 sm:px-6 py-4 border-t border-gray-200">
           <form onSubmit={sendMessage} className="flex items-center gap-3">
             <input
               ref={inputRef}
@@ -126,7 +135,7 @@ const ChatPage = () => {
               <Send className="w-5 h-5 text-white" />
             </button>
           </form>
-          <p className="text-xs text-gray-400 text-center mt-2">Partner in Crime is free to use • Can't help build until you pay for a build</p>
+          <p className="text-xs text-gray-400 text-center mt-2">Partner in Crime is free to use • Can&apos;t help build until you pay for a build</p>
         </div>
       </div>
     </div>

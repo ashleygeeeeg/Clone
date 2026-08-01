@@ -2,7 +2,7 @@ import React from 'react';
 import { ArrowLeft, Plus, MessageCircle, Sparkles } from 'lucide-react';
 
 export const ChatSidebar = ({ sessions, activeSessionId, onSelect, onNew, onBack }) => (
-  <div className="w-72 bg-gray-50 border-r border-gray-200 flex flex-col">
+  <div className="w-72 h-full bg-gray-50 border-r border-gray-200 flex flex-col">
     <div className="p-4 border-b border-gray-200">
       <button onClick={onBack} data-testid="chat-back-to-dashboard" className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-3 transition-colors">
         <ArrowLeft className="w-4 h-4" /> Dashboard

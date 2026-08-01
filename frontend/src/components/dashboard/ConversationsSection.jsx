@@ -3,7 +3,7 @@ import { Plus, MessageCircle } from 'lucide-react';
 
 export const ConversationsSection = ({ sessions, onOpen, onNew }) => (
   <div className="mt-12" data-testid="recent-conversations-section">
-    <div className="flex items-center justify-between mb-4">
+    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
       <div>
         <h3 className="text-xl font-bold text-gray-900">Recent Conversations</h3>
         <p className="text-sm text-gray-500">Pick up where you left off with Partner in Crime</p>
