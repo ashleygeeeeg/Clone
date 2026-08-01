@@ -20,6 +20,7 @@ React + Tailwind (frontend), FastAPI (backend), MongoDB. JWT auth. Emergent LLM 
 - Full E2E regression after GitHub repo sync: 24/24 backend tests + all frontend flows passed (test_reports/iteration_1.json)
 - Chat History on Dashboard: "Recent Conversations" section, cards open /chat?session={id} and hydrate past messages (verified)
 - Build Sharing: POST /api/builds/{id}/share generates stable slug; public page /share/{slug} (no auth) with build info + CTA; Share button with copy-to-clipboard on deployed builds (31/31 backend tests + frontend flows verified, test_reports/iteration_2.json)
+- Code review fixes (June 2026): auth tokens moved from localStorage to httpOnly session_token cookie (signup/login set cookie; XSS-safe); tests hardened (pymongo seeding instead of mongosh eval, random per-run passwords, no hardcoded URLs); chat_with_ai split into helpers; DashboardPage/ChatPage split into components (dashboard/BuildCard, ConversationsSection, NewBuildModal; chat/ChatSidebar, MessageList); anti-patterns fixed (message-id keys, no nested ternaries, consoles removed, memoized AuthContext value); mobile responsive fixes (dashboard header wrap, chat sidebar drawer at <md). Verified: 40/40 backend (iteration_4) + mobile/desktop frontend 100% (iteration_5)
 
 ## Key Endpoints
 - POST /api/auth/signup, /api/auth/login, GET /api/auth/me
