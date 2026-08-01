@@ -188,9 +188,9 @@ const HeroSection = () => {
               </svg>
             </button>
             <div className="flex gap-2">
-              {items.map((_, index) => (
+              {items.map((item, index) => (
                 <button
-                  key={index}
+                  key={item.id || `slide-${index}`}
                   onClick={() => setCurrentSlide(index)}
                   className={`transition-all duration-300 rounded-full ${
                     index === currentSlide

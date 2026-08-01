@@ -3,14 +3,16 @@ import os
 import uuid
 import pytest
 import requests
+from dotenv import load_dotenv
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://genesis-clone-1.preview.emergentagent.com').rstrip('/')
+load_dotenv('/app/frontend/.env')
+BASE_URL = os.environ['REACT_APP_BACKEND_URL'].rstrip('/')
 API = f"{BASE_URL}/api"
 
-# Generate unique test user per run
+# Generate unique test credentials per run
 UNIQUE = uuid.uuid4().hex[:8]
 TEST_EMAIL = f"testuser_e2e_{UNIQUE}@maligee.ai"
-TEST_PASSWORD = "TestPass123!"
+TEST_PASSWORD = f"TestPass-{uuid.uuid4().hex}!"
 TEST_NAME = "E2E Tester"
 
 
@@ -43,7 +45,7 @@ def test_root(session):
 class TestAuth:
     def test_signup_creates_user(self, auth_ctx):
         assert auth_ctx["user"]["email"] == TEST_EMAIL
-        assert auth_ctx["user"]["has_free_build"] is True
+        assert auth_ctx["user"]["has_free_build"]
         assert len(auth_ctx["token"]) > 20
 
     def test_signup_duplicate_email(self, session):
@@ -66,8 +68,8 @@ class TestAuth:
         assert d["email"] == TEST_EMAIL
         assert "build_count" in d
 
-    def test_me_requires_auth(self, session):
-        r = session.get(f"{API}/auth/me")
+    def test_me_requires_auth(self):
+        r = requests.get(f"{API}/auth/me")
         assert r.status_code == 401
 
 
@@ -78,7 +80,7 @@ class TestBuilds:
                          headers=auth_ctx["headers"])
         assert r.status_code == 200
         d = r.json()
-        assert d["is_free"] is True
+        assert d["is_free"]
         assert d["payment_status"] == "free"
         auth_ctx["free_build_id"] = d["id"]
 
@@ -86,7 +88,7 @@ class TestBuilds:
         r = session.post(f"{API}/builds", json={"name": "TEST_Second Build"}, headers=auth_ctx["headers"])
         assert r.status_code == 200
         d = r.json()
-        assert d["is_free"] is False
+        assert not d["is_free"]
         assert d["payment_status"] == "pending"
         assert d["price"] == 10.0
         auth_ctx["paid_build_id"] = d["id"]
@@ -122,8 +124,8 @@ class TestBuilds:
         assert r.status_code == 200
         assert r.json()["status"] == "deployed"
 
-    def test_builds_require_auth(self, session):
-        r = session.get(f"{API}/builds")
+    def test_builds_require_auth(self):
+        r = requests.get(f"{API}/builds")
         assert r.status_code == 401
 
 

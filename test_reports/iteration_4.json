@@ -1,0 +1,71 @@
+{
+  "summary": "Full backend/frontend regression after cookie-auth and component refactors. Backend suites pass 40/40 after correcting two stale unauthenticated-test assumptions and adding Google-only login coverage. Desktop UI passed signup, httpOnly cookie/no-localStorage verification, reload persistence, logout, build create/pay/deploy/share, existing-user login, conversations/history, real AI chat, landing content, and known public sharing. Two regressions remain: the specifically requested /share/genesis-clone-1 URL is not found, and protected Dashboard/Chat layouts horizontally overflow on mobile.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "/api/share/genesis-clone-1",
+        "issue": "Returns 404, so the required public /share/genesis-clone-1 page renders 'Build not found'. Public sharing itself works for existing slug 49d1ac77 and newly generated slugs.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "DashboardPage and ChatPage mobile layouts",
+        "issue": "At 390px viewport, Dashboard document width is 613px and Chat document width is 514px. Header/navigation overflow; Chat sidebar is squeezed/clipped and main content extends off-screen.",
+        "selector": "[data-testid='patient-dashboard'], [data-testid='new-chat-btn'], [data-testid='chat-input']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Public requested share link",
+        "issue": "Unauthenticated navigation to /share/genesis-clone-1 calls /api/share/genesis-clone-1, receives 404, and shows the not-found state instead of a public build.",
+        "affected_selectors": ["[data-testid='share-page']", "[data-testid='share-not-found']"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Mobile Dashboard and Chat (390x844)",
+        "issues": [
+          "Dashboard has 223px horizontal overflow.",
+          "Chat has 124px horizontal overflow; sidebar labels and header/user email are clipped and message/input content extends beyond the viewport."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_google_auth.py",
+    "/app/test_reports/pytest/iteration_4_results.xml"
+  ],
+  "action_items": [
+    "Restore/seed a deployed build with share_slug='genesis-clone-1', or correct the required canonical public URL if 49d1ac77 is the intended slug.",
+    "Make Dashboard header/navigation responsive and implement a mobile Chat sidebar pattern (drawer/collapse), with min-width constraints so both pages avoid horizontal scrolling.",
+    "Re-run public-share and 390px responsive browser tests after fixes.",
+    "Resolve full frontend lint findings in touched ChatPage/MessageList files (unescaped entities and unused eslint-disable directives)."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 727 lines, exceeding the 700-line split threshold; move auth, builds/share, chat, and landing routes into focused routers.",
+    "JWT_SECRET has a hardcoded fallback and EMERGENT_SESSION_API is hardcoded; security-sensitive configuration should come from required environment variables and fail fast when absent.",
+    "UserCreate/UserLogin/BuildCreate use unconstrained strings; add EmailStr and meaningful min/max length validation for email, password, build name, descriptions, and chat messages.",
+    "The cookie migration invalidated two old negative tests because their shared requests.Session now retained the auth cookie. The tests were corrected to use a fresh unauthenticated requests call; this was a test defect, not an authorization bypass."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_google_auth.py",
+    "/app/frontend/src/pages/AuthPage.jsx",
+    "/app/test_reports/iteration_4.json"
+  ],
+  "success_rate": {
+    "backend": "100% (40/40)",
+    "frontend": "92% of executed desktop/mobile checks; all critical desktop auth/build/chat flows passed"
+  },
+  "seed_data_creation": "Created UI account TEST_signup_ui_1785588195403@maligee.ai with one free deployed build and one mock-paid deployed build. Sent one real AI chat turn on the existing credentialed account. Google-only/session fixtures were auto-cleaned; backend regression suite generated unique test users/builds/waitlist records.",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend regression is green at 40/40. Auth cookie is httpOnly/secure/SameSite=None, maligee_token stays absent, reload persistence and logout redirect pass. Conversation query-param history and real AI response pass. Known public slug 49d1ac77 works without auth; only required slug genesis-clone-1 is missing. Retest mobile at 390x844 and assert document.scrollWidth <= clientWidth on Dashboard and Chat.",
+  "rca_of_the_issue": "Share RCA: SharePage correctly requests /api/share/{slug}; server.py only returns a DB build whose share_slug matches and status is deployed. No matching deployed record exists for genesis-clone-1, so the API correctly emits 404 but violates the requested fixture/URL contract. Mobile RCA: Dashboard uses a non-wrapping multi-group header/nav, while Chat uses a fixed desktop flex/sidebar composition with no responsive breakpoint or drawer; wide children force document overflow at 390px."
+}

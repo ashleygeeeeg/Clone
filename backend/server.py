@@ -153,6 +153,17 @@ def decode_token(token: str) -> dict:
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
+def set_auth_cookie(response: Response, token: str, max_age_seconds: int):
+    response.set_cookie(
+        key="session_token",
+        value=token,
+        max_age=max_age_seconds,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        path="/"
+    )
+
 async def _user_from_session_token(session_token: str):
     session = await db.user_sessions.find_one({"session_token": session_token}, {"_id": 0})
     if not session:
@@ -201,7 +212,7 @@ async def get_optional_user(request: Request):
 # ═══════════════════════════════════════════════════════════════
 
 @api_router.post("/auth/signup")
-async def signup(data: UserCreate):
+async def signup(data: UserCreate, response: Response):
     existing = await db.users.find_one({"email": data.email.lower()})
     if existing:
         raise HTTPException(status_code=409, detail="Email already registered")
@@ -219,6 +230,7 @@ async def signup(data: UserCreate):
     }
     await db.users.insert_one(user_doc)
     token = create_token(user_id, data.email.lower())
+    set_auth_cookie(response, token, JWT_EXPIRY_HOURS * 3600)
     logger.info(f"New user signup: {data.email}")
     return {
         "token": token,
@@ -233,14 +245,17 @@ async def signup(data: UserCreate):
     }
 
 @api_router.post("/auth/login")
-async def login(data: UserLogin):
+async def login(data: UserLogin, response: Response):
     user = await db.users.find_one({"email": data.email.lower()})
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not user.get('password_hash'):
+        raise HTTPException(status_code=401, detail="This account uses Google Sign-In")
     if not verify_password(data.password, user['password_hash']):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     token = create_token(user['id'], user['email'])
+    set_auth_cookie(response, token, JWT_EXPIRY_HOURS * 3600)
     return {
         "token": token,
         "user": {
@@ -525,9 +540,7 @@ async def get_pricing():
 # AI "PARTNER IN CRIME" ROUTES
 # ═══════════════════════════════════════════════════════════════
 
-# Store active chat sessions
-chat_sessions = {}
-
+# Remove unused in-memory session store (history is DB-backed)
 PARTNER_SYSTEM_MESSAGE = """You are "Partner in Crime" — an AI assistant for maligeeAi. You are helpful, witty, and unfiltered. You speak candidly and don't hold back. You can discuss any topic openly.
 
 Key rules:
@@ -540,6 +553,35 @@ Key rules:
 7. If someone asks who you are, say "I'm Partner in Crime, your AI sidekick on maligeeAi. I'm here to help you with anything — well, almost anything until you pay for a build 😏"
 """
 
+async def _user_can_build(user) -> bool:
+    if not user:
+        return False
+    paid_builds = await db.builds.count_documents({
+        "user_id": user['id'],
+        "payment_status": {"$in": ["free", "paid", "mock_paid"]}
+    })
+    return paid_builds > 0
+
+def _partner_system_message(can_build: bool) -> str:
+    if can_build:
+        return PARTNER_SYSTEM_MESSAGE + "\n\nIMPORTANT: This user HAS paid for builds. You CAN help them build, write code, and create implementations. Go all out!"
+    return PARTNER_SYSTEM_MESSAGE + "\n\nIMPORTANT: This user has NOT paid for any builds yet. Do NOT write implementation code for them. Guide them to create a build first."
+
+async def _load_history_into_chat(chat, session_id: str, user_id: str):
+    history = await db.chat_history.find(
+        {"session_id": session_id, "user_id": user_id}
+    ).sort("created_at", 1).to_list(50)
+    for msg in history:
+        if msg['role'] in ('user', 'assistant'):
+            chat.messages.append({"role": msg['role'], "content": msg['content']})
+
+async def _save_chat_turn(session_id: str, user_id: str, user_message: str, ai_response: str):
+    now = datetime.now(timezone.utc).isoformat()
+    await db.chat_history.insert_many([
+        {"session_id": session_id, "user_id": user_id, "role": "user", "content": user_message, "created_at": now},
+        {"session_id": session_id, "user_id": user_id, "role": "assistant", "content": ai_response, "created_at": now}
+    ])
+
 @api_router.post("/chat")
 async def chat_with_ai(data: ChatMessage, user=Depends(get_optional_user)):
     if not EMERGENT_LLM_KEY:
@@ -547,71 +589,21 @@ async def chat_with_ai(data: ChatMessage, user=Depends(get_optional_user)):
 
     session_id = data.session_id or str(uuid.uuid4())
     user_id = user['id'] if user else 'anonymous'
-
-    # Check if user has paid builds (to determine if AI can help build)
-    has_paid_build = False
-    can_build = False
-    if user:
-        paid_builds = await db.builds.count_documents({
-            "user_id": user['id'],
-            "payment_status": {"$in": ["free", "paid", "mock_paid"]}
-        })
-        has_paid_build = paid_builds > 0
-        can_build = has_paid_build
-
-    # Adjust system message based on payment status
-    system_msg = PARTNER_SYSTEM_MESSAGE
-    if can_build:
-        system_msg += "\n\nIMPORTANT: This user HAS paid for builds. You CAN help them build, write code, and create implementations. Go all out!"
-    else:
-        system_msg += "\n\nIMPORTANT: This user has NOT paid for any builds yet. Do NOT write implementation code for them. Guide them to create a build first."
-
-    # Create or reuse chat session
-    chat_key = f"{user_id}_{session_id}"
+    can_build = await _user_can_build(user)
 
     try:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
-            session_id=chat_key,
-            system_message=system_msg
+            session_id=f"{user_id}_{session_id}",
+            system_message=_partner_system_message(can_build)
         )
         chat.with_model("openai", "gpt-4o")
+        await _load_history_into_chat(chat, session_id, user_id)
 
-        # Load chat history from DB
-        history = await db.chat_history.find(
-            {"session_id": session_id, "user_id": user_id}
-        ).sort("created_at", 1).to_list(50)
-
-        for msg in history:
-            if msg['role'] == 'user':
-                chat.messages.append({"role": "user", "content": msg['content']})
-            elif msg['role'] == 'assistant':
-                chat.messages.append({"role": "assistant", "content": msg['content']})
-
-        user_message = UserMessage(text=data.message)
-        response = await chat.send_message(user_message)
-
-        # Save to chat history
-        now = datetime.now(timezone.utc).isoformat()
-        await db.chat_history.insert_many([
-            {
-                "session_id": session_id,
-                "user_id": user_id,
-                "role": "user",
-                "content": data.message,
-                "created_at": now
-            },
-            {
-                "session_id": session_id,
-                "user_id": user_id,
-                "role": "assistant",
-                "content": response,
-                "created_at": now
-            }
-        ])
+        response = await chat.send_message(UserMessage(text=data.message))
+        await _save_chat_turn(session_id, user_id, data.message, response)
 
         return {"response": response, "session_id": session_id}
-
     except Exception as e:
         logger.error(f"AI chat error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"AI service error: {str(e)}")

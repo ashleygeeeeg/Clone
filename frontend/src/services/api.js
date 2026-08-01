@@ -12,8 +12,7 @@ export const fetchShowcase = async () => {
       mobile: item.mobile_image,
       laptop: item.laptop_image,
     }));
-  } catch (error) {
-    console.error('Failed to fetch showcase:', error);
+  } catch {
     return null;
   }
 };
@@ -29,8 +28,7 @@ export const fetchFeatures = async () => {
       description: item.description,
       mockupType: item.mockup_type,
     }));
-  } catch (error) {
-    console.error('Failed to fetch features:', error);
+  } catch {
     return null;
   }
 };
@@ -43,8 +41,7 @@ export const fetchStats = async () => {
       users: response.data.users_count,
       usersLabel: response.data.description,
     };
-  } catch (error) {
-    console.error('Failed to fetch stats:', error);
+  } catch {
     return null;
   }
 };
@@ -59,8 +56,7 @@ export const fetchWaitlistCount = async () => {
   try {
     const response = await axios.get(`${API}/waitlist/count`);
     return response.data.count;
-  } catch (error) {
-    console.error('Failed to fetch waitlist count:', error);
+  } catch {
     return 0;
   }
 };
