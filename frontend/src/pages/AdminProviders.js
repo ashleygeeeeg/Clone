@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 
 const API = process.env.REACT_APP_BACKEND_URL || "";
 
@@ -10,7 +10,7 @@ export default function AdminProviders() {
   const token = localStorage.getItem("token");
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setError("");
       const [providers, healthResponse] = await Promise.all([
@@ -23,7 +23,7 @@ export default function AdminProviders() {
     } catch (err) {
       setError(err.message);
     }
-  };
+  }, [token]);
 
   const save = async (provider, enabled, model) => {
     const response = await fetch(`${API}/api/admin/providers`, {
@@ -35,14 +35,13 @@ export default function AdminProviders() {
     await load();
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   return (
     <main style={{ maxWidth: 900, margin: "40px auto", padding: 24 }}>
       <h1>AI Provider Administration</h1>
       <p>Manage enabled providers and inspect backend health.</p>
       {error && <div role="alert">{error}</div>}
-
       <section>
         <h2>Providers</h2>
         {data.available.map((provider) => {
