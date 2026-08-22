@@ -12,7 +12,7 @@ import uuid
 import bcrypt
 import jwt
 from datetime import datetime, timezone, timedelta
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+from openai import AsyncOpenAI
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -21,10 +21,12 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-JWT_SECRET = os.environ.get('JWT_SECRET', 'maligeeai-secret-key-change-in-prod-2025')
-JWT_ALGORITHM = 'HS256'
-JWT_EXPIRY_HOURS = 72
-EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
+JWT_SECRET = os.environ.get('JWT_SECRET', 'change-me-in-production')
+JWT_ALGORITHM = os.environ.get('JWT_ALGORITHM', 'HS256')
+JWT_EXPIRY_HOURS = int(os.environ.get('JWT_EXPIRY_HOURS', '72'))
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
+OPENAI_MODEL = os.environ.get('OPENAI_MODEL', 'gpt-4o-mini')
+openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -120,11 +122,12 @@ def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
 def create_token(user_id: str, email: str) -> str:
+    now = datetime.now(timezone.utc)
     payload = {
         'user_id': user_id,
         'email': email,
-        'exp': datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRY_HOURS),
-        'iat': datetime.now(timezone.utc)
+        'exp': now + timedelta(hours=JWT_EXPIRY_HOURS),
+        'iat': now
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
@@ -150,8 +153,7 @@ async def get_optional_user(credentials: HTTPAuthorizationCredentials = Depends(
         return None
     try:
         payload = decode_token(credentials.credentials)
-        user = await db.users.find_one({"id": payload['user_id']}, {"_id": 0})
-        return user
+        return await db.users.find_one({"id": payload['user_id']}, {"_id": 0})
     except Exception:
         return None
 
@@ -254,8 +256,8 @@ PARTNER_SYSTEM_MESSAGE = """You are Partner in Crime for maligeeAi. Be helpful a
 
 @api_router.post("/chat")
 async def chat_with_ai(data: ChatMessage, user=Depends(get_optional_user)):
-    if not EMERGENT_LLM_KEY:
-        raise HTTPException(status_code=500, detail="AI service not configured")
+    if openai_client is None:
+        raise HTTPException(status_code=500, detail="AI service not configured: set OPENAI_API_KEY")
     session_id = data.session_id or str(uuid.uuid4())
     user_id = user['id'] if user else 'anonymous'
     can_build = False
@@ -263,20 +265,22 @@ async def chat_with_ai(data: ChatMessage, user=Depends(get_optional_user)):
         paid_builds = await db.builds.count_documents({"user_id": user['id'], "payment_status": {"$in": ["free", "paid", "mock_paid"]}})
         can_build = paid_builds > 0
     system_msg = PARTNER_SYSTEM_MESSAGE + ("\nUser may build code." if can_build else "\nUser has no builds yet; do not write full implementation code.")
-    chat_key = f"{user_id}_{session_id}"
+    history = await db.chat_history.find({"session_id": session_id, "user_id": user_id}).sort("created_at", 1).to_list(50)
+    messages = [{"role": "system", "content": system_msg}]
+    messages.extend({"role": msg['role'], "content": msg['content']} for msg in history)
+    messages.append({"role": "user", "content": data.message})
     try:
-        chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=chat_key, system_message=system_msg)
-        chat.with_model("openai", "gpt-4o")
-        history = await db.chat_history.find({"session_id": session_id, "user_id": user_id}).sort("created_at", 1).to_list(50)
-        for msg in history:
-            chat.messages.append({"role": msg['role'], "content": msg['content']})
-        response = await chat.send_message(UserMessage(text=data.message))
+        completion = await openai_client.chat.completions.create(model=OPENAI_MODEL, messages=messages)
+        response = completion.choices[0].message.content or ""
         now = datetime.now(timezone.utc).isoformat()
-        await db.chat_history.insert_many([{"session_id": session_id, "user_id": user_id, "role": "user", "content": data.message, "created_at": now}, {"session_id": session_id, "user_id": user_id, "role": "assistant", "content": response, "created_at": now}])
+        await db.chat_history.insert_many([
+            {"session_id": session_id, "user_id": user_id, "role": "user", "content": data.message, "created_at": now},
+            {"session_id": session_id, "user_id": user_id, "role": "assistant", "content": response, "created_at": now}
+        ])
         return {"response": response, "session_id": session_id}
     except Exception as e:
-        logger.error(f"AI chat error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"AI service error: {str(e)}")
+        logger.error("AI chat error: %s", e)
+        raise HTTPException(status_code=500, detail="AI service request failed")
 
 @api_router.get("/chat/history/{session_id}")
 async def get_chat_history(session_id: str, user=Depends(get_current_user)):
@@ -367,3 +371,5 @@ app.add_middleware(
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+    if openai_client:
+        await openai_client.close()

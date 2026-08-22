@@ -1,4 +1,9 @@
 {
-  "moved": "frontend/vercel.json",
-  "note": "vercel.json moved to frontend/ for CRA builds. Delete this file from repo root if desired."
+  "buildCommand": "cd frontend && yarn build",
+  "installCommand": "cd frontend && yarn install --no-immutable",
+  "outputDirectory": "frontend/build",
+  "framework": null,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
