@@ -1,4 +1,0 @@
-{
-  "moved": "frontend/vercel.json",
-  "note": "vercel.json moved to frontend/ for CRA builds. Delete this file from repo root if desired."
-}
