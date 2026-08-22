@@ -8,9 +8,9 @@ export default function AdminProviders() {
   const [error, setError] = useState("");
 
   const token = localStorage.getItem("token");
-  const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
   const load = useCallback(async () => {
+    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
     try {
       setError("");
       const [providers, healthResponse] = await Promise.all([
@@ -26,6 +26,7 @@ export default function AdminProviders() {
   }, [token]);
 
   const save = async (provider, enabled, model) => {
+    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
     const response = await fetch(`${API}/api/admin/providers`, {
       method: "PUT",
       headers,
